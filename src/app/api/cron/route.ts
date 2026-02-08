@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabase, getSmsGatewayEmail } from '@/lib/supabase';
 import { getRandomVerse } from '@/lib/bible';
-import { sendVerseEmail } from '@/lib/email';
+import { sendVerseEmail, sendVerseSms } from '@/lib/email';
 
 // Verify cron secret to prevent unauthorized access
 function verifyCronSecret(request: Request): boolean {
@@ -68,13 +68,37 @@ export async function GET(request: Request) {
           continue;
         }
 
-        // Send the email
-        const success = await sendVerseEmail({
-          to: subscriber.email,
-          reference: verse.reference,
-          text: verse.text,
-          version: verse.version,
-        });
+        // Determine delivery destination and method
+        let success = false;
+        let deliveryMethod = subscriber.delivery_method || 'email';
+        let destination = subscriber.email;
+
+        if (deliveryMethod === 'sms' && subscriber.phone && subscriber.carrier) {
+          // Use SMS gateway
+          const smsEmail = getSmsGatewayEmail(subscriber.phone, subscriber.carrier);
+          if (smsEmail) {
+            destination = smsEmail;
+            success = await sendVerseSms({
+              to: smsEmail,
+              reference: verse.reference,
+              text: verse.text,
+              version: verse.version,
+            });
+          } else {
+            console.error(`Invalid SMS gateway for ${subscriber.email}`);
+            failed++;
+            continue;
+          }
+        } else {
+          // Standard email delivery
+          deliveryMethod = 'email';
+          success = await sendVerseEmail({
+            to: subscriber.email,
+            reference: verse.reference,
+            text: verse.text,
+            version: verse.version,
+          });
+        }
 
         if (success) {
           sent++;
@@ -84,7 +108,7 @@ export async function GET(request: Request) {
             subscriber_id: subscriber.id,
             verse_reference: verse.reference,
             verse_text: verse.text,
-            delivery_method: 'email',
+            delivery_method: deliveryMethod,
             status: 'sent',
           });
         } else {
@@ -94,9 +118,9 @@ export async function GET(request: Request) {
             subscriber_id: subscriber.id,
             verse_reference: verse.reference,
             verse_text: verse.text,
-            delivery_method: 'email',
+            delivery_method: deliveryMethod,
             status: 'failed',
-            error_message: 'Email send failed',
+            error_message: `${deliveryMethod} send failed`,
           });
         }
       } catch (error) {

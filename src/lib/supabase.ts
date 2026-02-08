@@ -25,7 +25,9 @@ export const supabase = {
 export interface Subscriber {
   id: string;
   email: string;
-  phone?: string; // For future SMS support
+  phone?: string; // For SMS gateway
+  carrier?: string; // For SMS-to-email gateway
+  delivery_method: 'email' | 'sms'; // How to deliver
   language: string;
   version: string;
   frequency: 'hourly' | 'daily' | 'weekly';
@@ -37,6 +39,35 @@ export interface Subscriber {
   is_verified: boolean;
   created_at: string;
   updated_at: string;
+}
+
+// SMS-to-Email Gateway addresses by carrier
+export const SMS_GATEWAYS: Record<string, { name: string; domain: string }> = {
+  'att': { name: 'AT&T', domain: 'txt.att.net' },
+  'verizon': { name: 'Verizon', domain: 'vtext.com' },
+  'tmobile': { name: 'T-Mobile', domain: 'tmomail.net' },
+  'sprint': { name: 'Sprint', domain: 'messaging.sprintpcs.com' },
+  'uscellular': { name: 'US Cellular', domain: 'email.uscc.net' },
+  'cricket': { name: 'Cricket', domain: 'sms.cricketwireless.net' },
+  'boost': { name: 'Boost Mobile', domain: 'sms.myboostmobile.com' },
+  'metro': { name: 'Metro PCS', domain: 'mymetropcs.com' },
+  'googlefi': { name: 'Google Fi', domain: 'msg.fi.google.com' },
+  'visible': { name: 'Visible', domain: 'vtext.com' },
+  'xfinity': { name: 'Xfinity Mobile', domain: 'vtext.com' },
+  'mint': { name: 'Mint Mobile', domain: 'tmomail.net' },
+};
+
+export function getSmsGatewayEmail(phone: string, carrier: string): string | null {
+  const gateway = SMS_GATEWAYS[carrier];
+  if (!gateway) return null;
+  
+  // Remove any non-digit characters from phone
+  const cleanPhone = phone.replace(/\D/g, '');
+  
+  // Ensure it's a valid 10-digit US number
+  if (cleanPhone.length !== 10) return null;
+  
+  return `${cleanPhone}@${gateway.domain}`;
 }
 
 export interface DeliveryLog {
@@ -55,8 +86,10 @@ export const SCHEMA_SQL = `
 -- Subscribers table
 CREATE TABLE IF NOT EXISTS subscribers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  email TEXT NOT NULL UNIQUE,
+  email TEXT NOT NULL,
   phone TEXT,
+  carrier TEXT,
+  delivery_method TEXT NOT NULL DEFAULT 'email' CHECK (delivery_method IN ('email', 'sms')),
   language TEXT NOT NULL DEFAULT 'en',
   version TEXT NOT NULL DEFAULT 'ESV',
   frequency TEXT NOT NULL DEFAULT 'daily' CHECK (frequency IN ('hourly', 'daily', 'weekly')),
@@ -67,7 +100,9 @@ CREATE TABLE IF NOT EXISTS subscribers (
   verification_code TEXT,
   is_verified BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(email),
+  UNIQUE(phone, carrier)
 );
 
 -- Delivery logs table

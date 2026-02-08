@@ -75,6 +75,39 @@ export async function sendVerseEmail({ to, reference, text, version }: VerseEmai
   }
 }
 
+/**
+ * Send a verse via SMS gateway (short format for text messages)
+ */
+export async function sendVerseSms({ to, reference, text, version }: VerseEmail): Promise<boolean> {
+  try {
+    // SMS messages should be short - truncate if needed
+    const maxLength = 160;
+    let messageText = `"${text}" - ${reference} (${version})`;
+    
+    if (messageText.length > maxLength) {
+      const truncatedText = text.substring(0, maxLength - reference.length - version.length - 15) + '...';
+      messageText = `"${truncatedText}" - ${reference} (${version})`;
+    }
+
+    const { error } = await getResend().emails.send({
+      from: getFromEmail(),
+      to,
+      subject: '', // SMS gateways ignore subject
+      text: messageText, // Plain text only for SMS
+    });
+
+    if (error) {
+      console.error('SMS send error:', error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('SMS error:', error);
+    return false;
+  }
+}
+
 export async function sendVerificationEmail(to: string, code: string): Promise<boolean> {
   try {
     const verifyUrl = `${process.env.NEXT_PUBLIC_APP_URL}/verify?email=${encodeURIComponent(to)}&code=${code}`;
