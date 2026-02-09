@@ -34,9 +34,9 @@ export const LANGUAGES = [
 ];
 
 export const FREQUENCIES = [
-  { value: 'hourly', label: 'Hourly' },
   { value: 'daily', label: 'Daily' },
   { value: 'weekly', label: 'Weekly' },
+  // Note: Hourly requires Vercel Pro plan for more frequent crons
 ];
 
 // Popular Bible verses for random selection
