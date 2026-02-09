@@ -5,11 +5,17 @@ import { sendVerseEmail, sendVerseSms } from '@/lib/email';
 
 // Verify cron secret to prevent unauthorized access
 function verifyCronSecret(request: Request): boolean {
-  const authHeader = request.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;
-  
   if (!cronSecret) return true; // Allow if no secret configured (dev mode)
-  return authHeader === `Bearer ${cronSecret}`;
+  
+  // Check Authorization header
+  const authHeader = request.headers.get('authorization');
+  if (authHeader === `Bearer ${cronSecret}`) return true;
+  
+  // Also allow query param for easy testing
+  const url = new URL(request.url);
+  const secretParam = url.searchParams.get('secret');
+  return secretParam === cronSecret;
 }
 
 export async function GET(request: Request) {
