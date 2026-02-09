@@ -15,7 +15,7 @@ function getResend(): Resend {
 }
 
 // Resend requires verified domain. Use their test address for free tier, or set FROM_EMAIL with verified domain.
-const getFromEmail = () => process.env.FROM_EMAIL || 'Bible Verse <onboarding@resend.dev>';
+const getFromEmail = () => process.env.FROM_EMAIL || 'onboarding@resend.dev';
 
 export interface VerseEmail {
   to: string;
