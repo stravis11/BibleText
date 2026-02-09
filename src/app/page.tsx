@@ -46,7 +46,7 @@ export default function Home() {
   const [phone, setPhone] = useState('');
   const [carrier, setCarrier] = useState('att');
   const [language, setLanguage] = useState('en');
-  const [version, setVersion] = useState('ESV');
+  const [version, setVersion] = useState('KJV');
   const [frequency, setFrequency] = useState('daily');
   const [deliveryTime, setDeliveryTime] = useState('08:00');
   const [deliveryDay, setDeliveryDay] = useState(0);
